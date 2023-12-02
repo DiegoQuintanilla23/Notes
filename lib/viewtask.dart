@@ -1,33 +1,62 @@
 import 'package:app_notes/home.dart';
+import 'package:app_notes/services/firebase_service.dart';
 import 'package:app_notes/setloc.dart';
+import 'package:app_notes/taskedit.dart';
 import 'package:app_notes/utils/singleton.dart';
+import 'package:app_notes/viewmap.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:floating_bubbles/floating_bubbles.dart';
 import 'package:flutter/material.dart';
 import 'package:app_notes/utils/cons.dart' as cons;
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
 
-class TaskEdit extends StatefulWidget {
+class ViewTask extends StatefulWidget {
   final String TaskID;
 
-  TaskEdit({required this.TaskID});
+  ViewTask({required this.TaskID});
 
   @override
-  State<TaskEdit> createState() => _TaskEditState();
+  State<ViewTask> createState() => _ViewTaskState();
 }
 
-class _TaskEditState extends State<TaskEdit> {
+class _ViewTaskState extends State<ViewTask> {
   Singleton sgl = Singleton();
   TextEditingController _titleController = TextEditingController();
   TextEditingController _contentController = TextEditingController();
   TextEditingController _dateController = TextEditingController();
   DateTime? _selectedDate;
   LatLng? SelectedLoc;
+  double latitude = 0.0;
+  double longitude = 0.0;
 
   @override
   void initState() {
     super.initState();
-    _dateController.text = 'Fecha';
+    loadTaskData();
+  }
+
+  Future<void> loadTaskData() async {
+    // Obtener datos de la tarea usando la función getTaskDataById.
+    Map<String, dynamic>? taskData = await getTaskDataById(widget.TaskID);
+
+    if (taskData != null) {
+      // Actualizar los controladores con los datos obtenidos.
+      setState(() {
+        _titleController.text = taskData['title'];
+        _contentController.text = taskData['content'];
+        // Puedes manejar la fecha y la ubicación según tus necesidades.
+        _dateController.text =
+            DateFormat('dd-MM-yy').format(taskData?['date']?.toDate() ?? '');
+
+        // Obtener la latitud y longitud de GeoPoint
+        GeoPoint? location = taskData['location'];
+        if (location != null) {
+          latitude = location.latitude;
+          longitude = location.longitude;
+        }
+      });
+    }
   }
 
   @override
@@ -56,7 +85,7 @@ class _TaskEditState extends State<TaskEdit> {
               Text('|', style: TextStyle(fontSize: 24, color: cons.negro)),
               SizedBox(width: 50),
               Text(
-                'Agregar una nota',
+                'Nota',
                 style: TextStyle(
                   color: cons.negro,
                   fontSize: 24.0,
@@ -105,6 +134,7 @@ class _TaskEditState extends State<TaskEdit> {
                           children: [
                             TextField(
                               controller: _titleController,
+                              enabled: false,
                               decoration: InputDecoration(
                                 fillColor: cons.controllerfill,
                                 filled: true,
@@ -130,6 +160,7 @@ class _TaskEditState extends State<TaskEdit> {
                             SizedBox(height: 16.0),
                             TextField(
                               controller: _contentController,
+                              enabled: false,
                               maxLines: 20,
                               decoration: InputDecoration(
                                 fillColor: cons.controllerfill,
@@ -158,27 +189,7 @@ class _TaskEditState extends State<TaskEdit> {
                               children: [
                                 Expanded(
                                   child: TextButton(
-                                    onPressed: () async {
-                                      DateTime? pickedDate =
-                                          await showDatePicker(
-                                        context: context,
-                                        initialDate:
-                                            _selectedDate ?? DateTime.now(),
-                                        firstDate: DateTime(1900),
-                                        lastDate: DateTime(2100),
-                                      );
-
-                                      if (pickedDate != null &&
-                                          pickedDate != _selectedDate) {
-                                        setState(() {
-                                          _selectedDate = pickedDate;
-                                          print(_selectedDate.toString());
-                                          _dateController.text =
-                                              DateFormat('dd-MM-yy')
-                                                  .format(_selectedDate!);
-                                        });
-                                      }
-                                    },
+                                    onPressed: () async {},
                                     style: TextButton.styleFrom(
                                       backgroundColor: cons.azul,
                                       onSurface: cons.azulF,
@@ -205,22 +216,14 @@ class _TaskEditState extends State<TaskEdit> {
                                 Expanded(
                                   child: TextButton(
                                     onPressed: () async {
-                                      LatLng? ubicacionSeleccionada =
-                                          await Navigator.push(
+                                      Navigator.push(
                                         context,
                                         MaterialPageRoute(
-                                          builder: (context) => Setloc(),
+                                          builder: (context) => ViewMap(
+                                              latitude: latitude,
+                                              longitude: longitude),
                                         ),
                                       );
-
-                                      if (ubicacionSeleccionada != null) {
-                                        SelectedLoc = ubicacionSeleccionada;
-                                        print(
-                                            'Ubicación seleccionada: $ubicacionSeleccionada');
-                                      } else {
-                                        print(
-                                            'Selección de ubicación cancelada');
-                                      }
                                     },
                                     style: TextButton.styleFrom(
                                       backgroundColor: cons.azul,
@@ -278,37 +281,6 @@ class _TaskEditState extends State<TaskEdit> {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 16.0),
-                            TextButton(
-                              onPressed: () {
-                                String title = _titleController.text;
-                                String content = _contentController.text;
-                                String fecha = _selectedDate.toString();
-                                String loc = SelectedLoc.toString();
-
-                                print('Título: $title, Contenido: $content');
-                              },
-                              style: TextButton.styleFrom(
-                                backgroundColor: cons.azul,
-                                onSurface: cons.azulF,
-                                disabledForegroundColor: cons.azulF,
-                                elevation: 5,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 16.0,
-                                  horizontal: 24.0,
-                                ),
-                              ),
-                              child: const Text(
-                                'Guardar Tarea',
-                                style: TextStyle(
-                                  color: cons.negro,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            )
                           ],
                         ),
                       ),
@@ -318,6 +290,20 @@ class _TaskEditState extends State<TaskEdit> {
               ),
             ],
           ),
+        ),
+        floatingActionButton: FloatingActionButton(
+          onPressed: () {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => TaskEdit(
+                  TaskID: '-1',
+                ),
+              ),
+            );
+          },
+          child: Icon(Icons.edit),
+          backgroundColor: Color.fromARGB(132, 71, 199, 225),
         ),
       ),
     );

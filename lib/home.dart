@@ -1,10 +1,14 @@
+import 'dart:async';
+
 import 'package:app_notes/navbar.dart';
 import 'package:app_notes/services/firebase_service.dart';
 import 'package:app_notes/taskedit.dart';
 import 'package:app_notes/utils/singleton.dart';
+import 'package:app_notes/viewtask.dart';
 import 'package:flutter/material.dart';
 import 'package:app_notes/utils/cons.dart' as cons;
 import 'package:floating_bubbles/floating_bubbles.dart';
+import 'package:intl/intl.dart';
 
 Singleton sgl = Singleton();
 
@@ -100,7 +104,7 @@ class _HomeState extends State<Home> {
                     ),
                     FutureBuilder(
                       future: getTasksByUserId(sgl.docIDuser),
-                      builder: ((context,
+                      builder: (context,
                           AsyncSnapshot<List<Map<String, dynamic>>> snapshot) {
                         if (snapshot.connectionState ==
                             ConnectionState.waiting) {
@@ -108,29 +112,108 @@ class _HomeState extends State<Home> {
                         } else if (snapshot.hasError) {
                           return Text('Error: ${snapshot.error}');
                         } else {
-                          return ListView.builder(
-                            itemCount: snapshot.data?.length,
-                            itemBuilder: (context, index) {
-                              var document = snapshot.data?[index];
-                              return InkWell(
-                                onTap: () async {
-                                  Navigator.pushReplacement(
-                                    context,
-                                    MaterialPageRoute(
-                                        builder: (context) => TaskEdit(
-                                              TaskID: document?['documentId'],
-                                            )),
-                                  );
-                                },
-                                child: Text(
-                                  document?['title'],
-                                ),
-                              );
-                            },
-                          );
+                          if (snapshot.data != null &&
+                              snapshot.data!.isNotEmpty) {
+                            // Lista de tareas no vacía
+                            return ListView.builder(
+                              itemCount: snapshot.data!.length,
+                              itemBuilder: (context, index) {
+                                var document = snapshot.data![index];
+                                return Card(
+                                  color: Colors.transparent,
+                                  margin: EdgeInsets.all(6.0),
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(10.0),
+                                      color: cons.cardfill,
+                                    ),
+                                    child: ListTile(
+                                      leading: Container(
+                                        alignment: Alignment.center,
+                                        width: 40.0,
+                                        child: Icon(
+                                          Icons.list,
+                                          color: cons.gris,
+                                        ),
+                                      ),
+                                      title: Text(
+                                        document?['title'] ?? '',
+                                        style: TextStyle(
+                                          color: cons.blanco,
+                                        ),
+                                      ),
+                                      subtitle: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            truncateText(
+                                                document?['content'] ?? '',
+                                                maxChars: 28),
+                                            style: TextStyle(
+                                              color: cons.gris,
+                                            ),
+                                          ),
+                                          SizedBox(height: 4.0),
+                                          Text(
+                                            DateFormat('dd-MM-yyyy').format(
+                                                document?['date']?.toDate() ??
+                                                    DateTime.now()),
+                                            style: TextStyle(
+                                              color: cons.gris,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      trailing: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          IconButton(
+                                            icon: Icon(Icons.visibility),
+                                            color: cons.gris,
+                                            onPressed: () {
+                                              Navigator.pushReplacement(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (context) =>
+                                                      ViewTask(
+                                                    TaskID: document?[
+                                                            'documentId'] ??
+                                                        '-1',
+                                                  ),
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                          IconButton(
+                                            icon: Icon(Icons.delete),
+                                            color: cons.gris,
+                                            onPressed: () async {
+                                              await deleteTask(
+                                                document?['documentId'] ?? '-1',
+                                              );
+                                              _showSnackbar(context);
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            );
+                          } else {
+                            // Lista de tareas vacía
+                            return Center(
+                              child: Text(
+                                'Agrega tareas notas',
+                                style: TextStyle(fontSize: 16.0),
+                              ),
+                            );
+                          }
                         }
-                      }),
-                    ),
+                      },
+                    )
                   ],
                 ),
               ),
@@ -154,4 +237,30 @@ class _HomeState extends State<Home> {
       ),
     );
   }
+}
+
+String truncateText(String text, {int maxChars = 50}) {
+  if (text.length <= maxChars) {
+    return text;
+  } else {
+    return '${text.substring(0, maxChars)}...';
+  }
+}
+
+void _showSnackbar(BuildContext context) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(
+      content: Text('Borrando...'),
+      backgroundColor: Color.fromARGB(255, 57, 57, 57),
+      duration: Duration(seconds: 3),
+      behavior: SnackBarBehavior.fixed,
+    ),
+  );
+  // Espera 3 segundos antes de navegar a otra pantalla
+  Timer(const Duration(seconds: 3), () {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const Home()),
+    );
+  });
 }
