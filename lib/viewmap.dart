@@ -78,9 +78,13 @@ class _ViewMapState extends State<ViewMap> {
                         sizeFactor: 0.16,
                         duration: 3000, // 120 seconds.
                         opacity: 70,
-                        paintingStyle: PaintingStyle.stroke,
+                        paintingStyle: sgl.isStroke
+                            ? PaintingStyle.stroke
+                            : PaintingStyle.fill,
                         strokeWidth: 8,
-                        shape: BubbleShape.circle,
+                        shape: sgl.isSquare
+                            ? BubbleShape.square
+                            : BubbleShape.circle,
                         speed: BubbleSpeed.normal,
                       ),
                     ),

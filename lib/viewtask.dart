@@ -29,6 +29,7 @@ class _ViewTaskState extends State<ViewTask> {
   LatLng? SelectedLoc;
   double latitude = 0.0;
   double longitude = 0.0;
+  String imginkk = '0';
 
   @override
   void initState() {
@@ -41,15 +42,17 @@ class _ViewTaskState extends State<ViewTask> {
     Map<String, dynamic>? taskData = await getTaskDataById(widget.TaskID);
 
     if (taskData != null) {
-      // Actualizar los controladores con los datos obtenidos.
       setState(() {
         _titleController.text = taskData['title'];
         _contentController.text = taskData['content'];
-        // Puedes manejar la fecha y la ubicación según tus necesidades.
+        imginkk = taskData['imglink'];
+
         _dateController.text =
             DateFormat('dd-MM-yy').format(taskData?['date']?.toDate() ?? '');
+        if (_dateController.text == '31-12-69') {
+          _dateController.text = 'Sin Fecha';
+        }
 
-        // Obtener la latitud y longitud de GeoPoint
         GeoPoint? location = taskData['location'];
         if (location != null) {
           latitude = location.latitude;
@@ -121,9 +124,13 @@ class _ViewTaskState extends State<ViewTask> {
                           sizeFactor: 0.16,
                           duration: 3000, // 120 seconds.
                           opacity: 70,
-                          paintingStyle: PaintingStyle.stroke,
+                          paintingStyle: sgl.isStroke
+                              ? PaintingStyle.stroke
+                              : PaintingStyle.fill,
                           strokeWidth: 8,
-                          shape: BubbleShape.circle,
+                          shape: sgl.isSquare
+                              ? BubbleShape.square
+                              : BubbleShape.circle,
                           speed: BubbleSpeed.normal,
                         ),
                       ),
@@ -135,6 +142,7 @@ class _ViewTaskState extends State<ViewTask> {
                             TextField(
                               controller: _titleController,
                               enabled: false,
+                              style: TextStyle(color: cons.negro),
                               decoration: InputDecoration(
                                 fillColor: cons.controllerfill,
                                 filled: true,
@@ -162,6 +170,7 @@ class _ViewTaskState extends State<ViewTask> {
                               controller: _contentController,
                               enabled: false,
                               maxLines: 20,
+                              style: TextStyle(color: cons.negro),
                               decoration: InputDecoration(
                                 fillColor: cons.controllerfill,
                                 filled: true,
@@ -251,11 +260,28 @@ class _ViewTaskState extends State<ViewTask> {
                                 Expanded(
                                   child: TextButton(
                                     onPressed: () {
-                                      String title = _titleController.text;
-                                      String content = _contentController.text;
-
-                                      print(
-                                          'Título: $title, Contenido: $content');
+                                      showDialog<String>(
+                                        context: context,
+                                        builder: (BuildContext context) =>
+                                            AlertDialog(
+                                          title: const Text('Imagen'),
+                                          content: imginkk != '0'
+                                              ? Image.network(
+                                                  imginkk,
+                                                  width: size.width * 0.23,
+                                                  height: size.height * 0.25,
+                                                  fit: BoxFit.cover,
+                                                )
+                                              : const Text('No hay imagen'),
+                                          actions: <Widget>[
+                                            TextButton(
+                                              onPressed: () => Navigator.pop(
+                                                  context, 'Cancelar'),
+                                              child: const Text('Cerrar'),
+                                            ),
+                                          ],
+                                        ),
+                                      );
                                     },
                                     style: TextButton.styleFrom(
                                       backgroundColor: cons.azul,
@@ -297,7 +323,7 @@ class _ViewTaskState extends State<ViewTask> {
               context,
               MaterialPageRoute(
                 builder: (context) => TaskEdit(
-                  TaskID: '-1',
+                  TaskID: widget.TaskID,
                 ),
               ),
             );

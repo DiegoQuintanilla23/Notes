@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:app_notes/navbar.dart';
 import 'package:app_notes/services/firebase_service.dart';
 import 'package:app_notes/taskedit.dart';
@@ -24,18 +23,22 @@ class _HomeState extends State<Home> {
   late ThemeData currentTheme;
 
   @override
-  Future<void> initstate() async {
+  void initState() {
     //currentTheme = sgl.isDarkMode ? cons.darkTheme : cons.lightTheme;
     getData();
     currentTheme = cons.lightTheme;
+    setState(() {});
     super.initState();
   }
 
   void getData() async {
     Map<String, String>? userData = await getUserDataById(sgl.docIDuser);
     if (userData != null) {
+      print('Datos del usuario: $userData');
       sgl.usuario = userData['nombre']!;
       sgl.correo = userData['email']!;
+    } else {
+      print('getUserDataById devolvió datos nulos');
     }
   }
 
@@ -96,14 +99,19 @@ class _HomeState extends State<Home> {
                         sizeFactor: 0.16,
                         duration: 4000, // 120 seconds.
                         opacity: 70,
-                        paintingStyle: PaintingStyle.stroke,
+                        paintingStyle: sgl.isStroke
+                            ? PaintingStyle.stroke
+                            : PaintingStyle.fill,
                         strokeWidth: 8,
-                        shape: BubbleShape.circle,
+                        shape: sgl.isSquare
+                            ? BubbleShape.square
+                            : BubbleShape.circle,
                         speed: BubbleSpeed.normal,
                       ),
                     ),
                     FutureBuilder(
-                      future: getTasksByUserId(sgl.docIDuser),
+                      future: getTasksByUserId(
+                          sgl.docIDuser, sgl.order ? 'title' : 'date'),
                       builder: (context,
                           AsyncSnapshot<List<Map<String, dynamic>>> snapshot) {
                         if (snapshot.connectionState ==
@@ -156,9 +164,15 @@ class _HomeState extends State<Home> {
                                           ),
                                           SizedBox(height: 4.0),
                                           Text(
-                                            DateFormat('dd-MM-yyyy').format(
-                                                document?['date']?.toDate() ??
-                                                    DateTime.now()),
+                                            (document?['date']?.toDate() ??
+                                                        '') !=
+                                                    DateTime(
+                                                        1969, 12, 31, 18, 0, 0)
+                                                ? DateFormat('dd-MM-yyyy')
+                                                    .format(document?['date']
+                                                            ?.toDate() ??
+                                                        '')
+                                                : 'Sin fecha',
                                             style: TextStyle(
                                               color: cons.gris,
                                             ),
@@ -206,7 +220,7 @@ class _HomeState extends State<Home> {
                             // Lista de tareas vacía
                             return Center(
                               child: Text(
-                                'Agrega tareas notas',
+                                'Agrega algunas notas...',
                                 style: TextStyle(fontSize: 16.0),
                               ),
                             );
@@ -250,14 +264,14 @@ String truncateText(String text, {int maxChars = 50}) {
 void _showSnackbar(BuildContext context) {
   ScaffoldMessenger.of(context).showSnackBar(
     const SnackBar(
-      content: Text('Borrando...'),
+      content: Text('Borrado'),
       backgroundColor: Color.fromARGB(255, 57, 57, 57),
       duration: Duration(seconds: 3),
       behavior: SnackBarBehavior.fixed,
     ),
   );
   // Espera 3 segundos antes de navegar a otra pantalla
-  Timer(const Duration(seconds: 3), () {
+  Timer(const Duration(seconds: 0), () {
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (context) => const Home()),

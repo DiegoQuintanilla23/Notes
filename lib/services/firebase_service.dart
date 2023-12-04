@@ -68,10 +68,12 @@ Future<void> updateUser(
 }
 
 //Tareas
-Future<List<Map<String, dynamic>>> getTasksByUserId(String userID) async {
+Future<List<Map<String, dynamic>>> getTasksByUserId(
+    String userID, String orderByField) async {
   QuerySnapshot querySnapshot = await FirebaseFirestore.instance
       .collection('Tareas')
       .where('userID', isEqualTo: userID)
+      .orderBy(orderByField, descending: false)
       .get();
 
   List<Map<String, dynamic>> taskList = [];
@@ -84,6 +86,7 @@ Future<List<Map<String, dynamic>>> getTasksByUserId(String userID) async {
       'date': document['date'] ?? null,
       'location': document['location'] ?? null,
       'userID': document['userID'] ?? '',
+      'imglink': document['imglink'] ?? '',
     };
     taskList.add(taskData);
   }
@@ -105,6 +108,7 @@ Future<Map<String, dynamic>?> getTaskDataById(String documentId) async {
       'date': documentSnapshot['date'] ?? null,
       'location': documentSnapshot['location'] ?? null,
       'userID': documentSnapshot['userID'] ?? '',
+      'imglink': documentSnapshot['imglink'] ?? '',
     };
     return taskData;
   } else {
@@ -114,13 +118,14 @@ Future<Map<String, dynamic>?> getTaskDataById(String documentId) async {
 }
 
 Future<void> addTask(String title, String content, Timestamp date,
-    GeoPoint location, String userID) async {
+    GeoPoint location, String userID, String imgink) async {
   await db.collection("Tareas").add({
     "title": title,
     "content": content,
     "date": date,
     "location": location,
     "userID": userID,
+    "imglink": imgink,
   });
 }
 
@@ -128,13 +133,38 @@ Future<void> deleteTask(String documentId) async {
   await db.collection("Tareas").doc(documentId).delete();
 }
 
-Future<void> updateTask(String documentId, String newtitle, String newcontent,
-    Timestamp newdate, GeoPoint newlocation, String userID) async {
+Future<void> updateTask(
+    String documentId,
+    String newtitle,
+    String newcontent,
+    Timestamp newdate,
+    GeoPoint newlocation,
+    String userID,
+    String newimgink) async {
   await db.collection("Tareas").doc(documentId).update({
     "title": newtitle,
     "content": newcontent,
     "date": newdate,
     "location": newlocation,
     "userID": userID,
+    "imglink": newimgink,
   });
+}
+
+Future<List<Map<String, dynamic>>> getTasksByUserIdWithOrder(
+    String userId, String orderByField) async {
+  try {
+    var querySnapshot = await FirebaseFirestore.instance
+        .collection('tasks')
+        .where('userId', isEqualTo: userId)
+        .orderBy(orderByField)
+        .get();
+
+    return querySnapshot.docs
+        .map((doc) => doc.data() as Map<String, dynamic>)
+        .toList();
+  } catch (e) {
+    print('Error en getTasksByUserIdWithOrder: $e');
+    return [];
+  }
 }

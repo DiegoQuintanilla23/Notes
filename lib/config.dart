@@ -75,32 +75,56 @@ class _ConfigState extends State<Config> {
                         sizeFactor: 0.16,
                         duration: 3000, // 120 seconds.
                         opacity: 70,
-                        paintingStyle: PaintingStyle.stroke,
+                        paintingStyle: sgl.isStroke
+                            ? PaintingStyle.stroke
+                            : PaintingStyle.fill,
                         strokeWidth: 8,
-                        shape: BubbleShape.circle,
+                        shape: sgl.isSquare
+                            ? BubbleShape.square
+                            : BubbleShape.circle,
                         speed: BubbleSpeed.normal,
                       ),
                     ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text(
-                          'Cambiar tema',
-                          style: TextStyle(
-                            fontSize: 18.0,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Switch(
-                          value: sgl.isDarkMode,
-                          activeColor: cons.blanco,
-                          activeTrackColor: cons.negro,
-                          inactiveThumbColor: Colors.yellow,
-                          inactiveTrackColor: Colors.lightBlue,
+                        buildSwitchRow(
+                          label: 'Orden de Notas\nFecha/Titulo',
+                          value: sgl.order,
                           onChanged: (bool value) {
+                            sgl.order = value;
+                            setState(() {
+                              sgl.order = value;
+                            });
+                          },
+                        ),
+                        buildSwitchRow(
+                          label: 'Cambiar tema',
+                          value: sgl.isDarkMode,
+                          onChanged: (bool value) {
+                            sgl.isDarkMode = value;
                             setState(() {
                               sgl.isDarkMode = value;
-                              activated = sgl.isDarkMode;
+                            });
+                          },
+                        ),
+                        buildSwitchRow(
+                          label: 'Fondo de Cuadros',
+                          value: sgl.isSquare,
+                          onChanged: (bool value) {
+                            sgl.isSquare = value;
+                            setState(() {
+                              sgl.isSquare = value;
+                            });
+                          },
+                        ),
+                        buildSwitchRow(
+                          label: 'Relleno del Fondo',
+                          value: sgl.isStroke,
+                          onChanged: (bool value) {
+                            sgl.isStroke = value;
+                            setState(() {
+                              sgl.isStroke = value;
                             });
                           },
                         ),
@@ -115,4 +139,31 @@ class _ConfigState extends State<Config> {
       ),
     );
   }
+}
+
+Widget buildSwitchRow({
+  required String label,
+  required bool value,
+  required ValueChanged<bool> onChanged,
+}) {
+  return Row(
+    mainAxisAlignment: MainAxisAlignment.center,
+    children: [
+      Text(
+        label,
+        style: TextStyle(
+          fontSize: 18.0,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      Switch(
+        value: value,
+        activeColor: cons.blanco,
+        activeTrackColor: cons.negro,
+        inactiveThumbColor: value ? Colors.yellow : cons.negro,
+        inactiveTrackColor: value ? Colors.lightBlue : cons.blanco,
+        onChanged: onChanged,
+      ),
+    ],
+  );
 }

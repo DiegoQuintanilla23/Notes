@@ -2,6 +2,7 @@ import 'package:app_notes/config.dart';
 import 'package:app_notes/home.dart';
 import 'package:flutter/material.dart';
 import 'package:app_notes/utils/cons.dart' as cons;
+import 'package:flutter/services.dart';
 
 class NavBar extends StatelessWidget {
   final String usuario;
@@ -25,8 +26,8 @@ class NavBar extends StatelessWidget {
             accountEmail: Text(correo),
             currentAccountPicture: CircleAvatar(
               child: ClipOval(
-                child:
-                    Image.asset('assets/button.png', color: Colors.transparent),
+                child: Image.asset('assets/profile.png',
+                    color: sgl.isDarkMode ? cons.blanco : cons.negro),
               ),
             ),
           ),
@@ -50,8 +51,7 @@ class NavBar extends StatelessWidget {
             leading: Icon(Icons.logout),
             title: Text('Salir'),
             onTap: () {
-              Navigator.of(context)
-                  .push(MaterialPageRoute(builder: (context) => Config()));
+              SystemNavigator.pop();
             },
           ),
         ],

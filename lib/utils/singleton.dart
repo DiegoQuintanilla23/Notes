@@ -15,4 +15,7 @@ class Singleton {
   String datosusuario = '';
 
   bool isDarkMode = false;
+  bool isSquare = false;
+  bool isStroke = true;
+  bool order = false;
 }

@@ -1,11 +1,18 @@
+import 'dart:io';
+
 import 'package:app_notes/home.dart';
+import 'package:app_notes/services/firebase_service.dart';
 import 'package:app_notes/setloc.dart';
 import 'package:app_notes/utils/singleton.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:floating_bubbles/floating_bubbles.dart';
 import 'package:flutter/material.dart';
 import 'package:app_notes/utils/cons.dart' as cons;
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class TaskEdit extends StatefulWidget {
   final String TaskID;
@@ -23,12 +30,125 @@ class _TaskEditState extends State<TaskEdit> {
   TextEditingController _dateController = TextEditingController();
   DateTime? _selectedDate;
   LatLng? SelectedLoc;
+  double latitude = 0.0;
+  double longitude = 0.0;
+  PlatformFile? pickedFile;
+  UploadTask? uploadTask;
+  String imginkk = '0';
 
   @override
   void initState() {
     super.initState();
     _dateController.text = 'Fecha';
+    if (widget.TaskID != '-1') {
+      loadTaskData();
+    }
   }
+
+  Future<void> loadTaskData() async {
+    // Obtener datos de la tarea usando la función getTaskDataById.
+    Map<String, dynamic>? taskData = await getTaskDataById(widget.TaskID);
+
+    if (taskData != null) {
+      setState(() {
+        _titleController.text = taskData['title'];
+        _contentController.text = taskData['content'];
+        imginkk = taskData['imglink'];
+
+        _dateController.text =
+            DateFormat('dd-MM-yy').format(taskData?['date']?.toDate() ?? '');
+        if (_dateController.text == '31-12-69') {
+          _dateController.text = 'Fecha';
+        }
+
+        _selectedDate = taskData['date']?.toDate() != DateTime(1969, 12, 31)
+            ? taskData['date']?.toDate()
+            : null;
+
+        GeoPoint? location = taskData['location'];
+        if (location != null) {
+          latitude = location.latitude;
+          longitude = location.longitude;
+          SelectedLoc = LatLng(latitude, longitude);
+        }
+      });
+    }
+  }
+
+  Future selectFile() async {
+    final result = await FilePicker.platform.pickFiles();
+    if (result == null) return;
+    setState(() {
+      pickedFile = result.files.first;
+
+      print('Ruta del archivo seleccionado: ${pickedFile!.path}');
+    });
+  }
+
+  Future<String?> uploadFile() async {
+    try {
+      final path = 'files/${pickedFile!.name}';
+      final file = File(pickedFile!.path!);
+      final ref = FirebaseStorage.instance.ref().child(path);
+
+      // Subir el archivo
+      await ref.putFile(file);
+
+      // Obtener la URL de descarga directamente
+      final urlDownload = await ref.getDownloadURL();
+      print('Download Link: $urlDownload');
+
+      return urlDownload;
+    } catch (error) {
+      print('Error al subir el archivo: $error');
+      return null;
+    }
+  }
+
+  Future<void> checkAndRequestPermissions() async {
+    var status = await Permission.storage.status;
+    if (status.isGranted) {
+      selectFile();
+    } else {
+      var result = await Permission.storage.request();
+      if (result.isGranted) {
+        selectFile();
+      } else {
+        print('Permisos denegados');
+      }
+    }
+  }
+
+  Widget buildprogress() => StreamBuilder<TaskSnapshot>(
+      stream: uploadTask?.snapshotEvents,
+      builder: (context, snapshot) {
+        if (snapshot.hasData) {
+          final data = snapshot.data!;
+          double progress = data.bytesTransferred / data.totalBytes;
+
+          return SizedBox(
+            height: 16.00,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                LinearProgressIndicator(
+                  value: progress,
+                  backgroundColor: Colors.grey,
+                  color: Colors.green,
+                ),
+                Center(
+                  child: Text(
+                    '${(100 * progress).roundToDouble()}%',
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                )
+              ],
+            ),
+          );
+        } else {
+          return const SizedBox(height: 16.0);
+        }
+      });
 
   @override
   Widget build(BuildContext context) {
@@ -92,9 +212,13 @@ class _TaskEditState extends State<TaskEdit> {
                           sizeFactor: 0.16,
                           duration: 3000, // 120 seconds.
                           opacity: 70,
-                          paintingStyle: PaintingStyle.stroke,
+                          paintingStyle: sgl.isStroke
+                              ? PaintingStyle.stroke
+                              : PaintingStyle.fill,
                           strokeWidth: 8,
-                          shape: BubbleShape.circle,
+                          shape: sgl.isSquare
+                              ? BubbleShape.square
+                              : BubbleShape.circle,
                           speed: BubbleSpeed.normal,
                         ),
                       ),
@@ -105,6 +229,7 @@ class _TaskEditState extends State<TaskEdit> {
                           children: [
                             TextField(
                               controller: _titleController,
+                              style: TextStyle(color: cons.negro),
                               decoration: InputDecoration(
                                 fillColor: cons.controllerfill,
                                 filled: true,
@@ -126,11 +251,13 @@ class _TaskEditState extends State<TaskEdit> {
                                   ),
                                 ),
                               ),
+                              cursorColor: cons.azulF,
                             ),
                             SizedBox(height: 16.0),
                             TextField(
                               controller: _contentController,
                               maxLines: 20,
+                              style: TextStyle(color: cons.negro),
                               decoration: InputDecoration(
                                 fillColor: cons.controllerfill,
                                 filled: true,
@@ -152,6 +279,7 @@ class _TaskEditState extends State<TaskEdit> {
                                   ),
                                 ),
                               ),
+                              cursorColor: cons.azulF,
                             ),
                             const SizedBox(height: 16.0),
                             Row(
@@ -188,7 +316,7 @@ class _TaskEditState extends State<TaskEdit> {
                                         borderRadius: BorderRadius.circular(10),
                                       ),
                                       padding: const EdgeInsets.symmetric(
-                                        vertical: 16.0,
+                                        vertical: 14.0,
                                         horizontal: 24.0,
                                       ),
                                     ),
@@ -214,9 +342,11 @@ class _TaskEditState extends State<TaskEdit> {
                                       );
 
                                       if (ubicacionSeleccionada != null) {
-                                        SelectedLoc = ubicacionSeleccionada;
-                                        print(
-                                            'Ubicación seleccionada: $ubicacionSeleccionada');
+                                        setState(() {
+                                          SelectedLoc = ubicacionSeleccionada;
+                                          print(
+                                              'Ubicación seleccionada: $ubicacionSeleccionada');
+                                        });
                                       } else {
                                         print(
                                             'Selección de ubicación cancelada');
@@ -231,28 +361,38 @@ class _TaskEditState extends State<TaskEdit> {
                                         borderRadius: BorderRadius.circular(10),
                                       ),
                                       padding: const EdgeInsets.symmetric(
-                                        vertical: 16.0,
+                                        vertical: 10.0,
                                         horizontal: 24.0,
                                       ),
                                     ),
-                                    child: const Text(
-                                      'Ubicación',
-                                      style: TextStyle(
-                                        color: cons.negro,
-                                        fontSize: 13,
-                                      ),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          SelectedLoc != null
+                                              ? Icons.location_on
+                                              : Icons.location_off,
+                                          color: cons.negro,
+                                          size: 24.0,
+                                        ),
+                                        const SizedBox(width: 8.0),
+                                        Text(
+                                          '',
+                                          style: TextStyle(
+                                            color: cons.negro,
+                                            fontSize: 10,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 ),
                                 SizedBox(width: 5.0),
                                 Expanded(
                                   child: TextButton(
-                                    onPressed: () {
-                                      String title = _titleController.text;
-                                      String content = _contentController.text;
-
-                                      print(
-                                          'Título: $title, Contenido: $content');
+                                    onPressed: () async {
+                                      await checkAndRequestPermissions();
                                     },
                                     style: TextButton.styleFrom(
                                       backgroundColor: cons.azul,
@@ -263,16 +403,30 @@ class _TaskEditState extends State<TaskEdit> {
                                         borderRadius: BorderRadius.circular(10),
                                       ),
                                       padding: const EdgeInsets.symmetric(
-                                        vertical: 16.0,
+                                        vertical: 11.0,
                                         horizontal: 24.0,
                                       ),
                                     ),
-                                    child: const Text(
-                                      'Imagen',
-                                      style: TextStyle(
-                                        color: cons.negro,
-                                        fontSize: 13,
-                                      ),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          pickedFile != null
+                                              ? Icons.image
+                                              : Icons.image_not_supported,
+                                          color: cons.negro,
+                                          size: 24.0,
+                                        ),
+                                        const SizedBox(width: 8.0),
+                                        Text(
+                                          '',
+                                          style: TextStyle(
+                                            color: cons.negro,
+                                            fontSize: 10,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 ),
@@ -280,13 +434,54 @@ class _TaskEditState extends State<TaskEdit> {
                             ),
                             const SizedBox(height: 16.0),
                             TextButton(
-                              onPressed: () {
+                              onPressed: () async {
                                 String title = _titleController.text;
                                 String content = _contentController.text;
-                                String fecha = _selectedDate.toString();
-                                String loc = SelectedLoc.toString();
+                                Timestamp date = _selectedDate != null
+                                    ? Timestamp.fromDate(_selectedDate!)
+                                    : Timestamp.fromMillisecondsSinceEpoch(0);
+                                GeoPoint location = SelectedLoc != null
+                                    ? GeoPoint(SelectedLoc!.latitude,
+                                        SelectedLoc!.longitude)
+                                    : GeoPoint(0, 0);
+                                String userID = sgl.docIDuser;
+                                String imglink = '0';
 
-                                print('Título: $title, Contenido: $content');
+                                if (widget.TaskID == '-1') {
+                                  if (pickedFile != null) {
+                                    imglink = await uploadFile() ?? '0';
+                                    await addTask(title, content, date,
+                                        location, userID, imglink);
+                                  } else {
+                                    await addTask(title, content, date,
+                                        location, userID, imglink);
+                                  }
+                                } else {
+                                  if (pickedFile != null) {
+                                    imglink = await uploadFile() ?? '0';
+                                    await updateTask(
+                                        widget.TaskID,
+                                        title,
+                                        content,
+                                        date,
+                                        location,
+                                        userID,
+                                        imglink);
+                                  } else {
+                                    await updateTask(
+                                        widget.TaskID,
+                                        title,
+                                        content,
+                                        date,
+                                        location,
+                                        userID,
+                                        imglink);
+                                  }
+                                }
+
+                                Navigator.of(context).pushReplacement(
+                                    MaterialPageRoute(
+                                        builder: (context) => Home()));
                               },
                               style: TextButton.styleFrom(
                                 backgroundColor: cons.azul,
@@ -308,7 +503,9 @@ class _TaskEditState extends State<TaskEdit> {
                                   fontSize: 13,
                                 ),
                               ),
-                            )
+                            ),
+                            const SizedBox(height: 16.0),
+                            buildprogress(),
                           ],
                         ),
                       ),

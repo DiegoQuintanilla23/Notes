@@ -2,10 +2,13 @@ import 'package:app_notes/utils/singleton.dart';
 import 'package:floating_bubbles/floating_bubbles.dart';
 import 'package:flutter/material.dart';
 import 'package:app_notes/utils/cons.dart' as cons;
+import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class Setloc extends StatefulWidget {
   const Setloc({super.key});
+
   @override
   State<Setloc> createState() => _SetlocState();
 }
@@ -15,9 +18,48 @@ class _SetlocState extends State<Setloc> {
   late GoogleMapController mapController;
   LatLng initialPosition = LatLng(0.0, 0.0);
   LatLng selectedLocation = LatLng(0.0, 0.0);
+  bool permissionsGranted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _requestLocationPermission();
+  }
+
+  Future<void> _requestLocationPermission() async {
+    var status = await Permission.location.request();
+    if (status == PermissionStatus.granted) {
+      await _getLocation();
+      setState(() {
+        permissionsGranted = true;
+      });
+    } else {
+      print("Permiso de ubicación denegado");
+    }
+  }
+
+  Future<void> _getLocation() async {
+    try {
+      Position position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high);
+      setState(() {
+        initialPosition = LatLng(position.latitude, position.longitude);
+        selectedLocation = LatLng(position.latitude, position.longitude);
+      });
+    } catch (e) {
+      print("Error al obtener la ubicación: $e");
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (!permissionsGranted) {
+      // Si los permisos no se han concedido, puedes mostrar un indicador de carga o un mensaje.
+      return Center(
+        child: CircularProgressIndicator(),
+      );
+    }
+
     final size = MediaQuery.of(context).size;
     ThemeData currentTheme = sgl.isDarkMode ? cons.darkTheme : cons.lightTheme;
 
@@ -90,9 +132,13 @@ class _SetlocState extends State<Setloc> {
                         sizeFactor: 0.16,
                         duration: 3000, // 120 seconds.
                         opacity: 70,
-                        paintingStyle: PaintingStyle.stroke,
+                        paintingStyle: sgl.isStroke
+                            ? PaintingStyle.stroke
+                            : PaintingStyle.fill,
                         strokeWidth: 8,
-                        shape: BubbleShape.circle,
+                        shape: sgl.isSquare
+                            ? BubbleShape.square
+                            : BubbleShape.circle,
                         speed: BubbleSpeed.normal,
                       ),
                     ),
@@ -154,54 +200,3 @@ class _SetlocState extends State<Setloc> {
     );
   }
 }
-
-/**
-    GoogleMapController? mapController;
-    LatLng initialPosition = LatLng(0.0, 0.0);
-    LatLng selectedLocation = LatLng(0.0, 0.0);
-    Set<Marker> markers = {
-      Marker(
-        markerId: MarkerId('selectedLocation'),
-        position: selectedLocation,
-        draggable: true,
-        onDragEnd: (newPosition) {
-          setState(() {
-            selectedLocation = newPosition;
-          });
-        },
-      ),
-    };
-
-    GoogleMap(
-      onMapCreated: (controller) {
-        mapController = controller;
-      },
-      initialCameraPosition:
-          CameraPosition(
-        target: initialPosition,
-        zoom: 15.0,
-      ),
-      markers: markers,
-      onTap: (position) {
-        setState(() {
-          selectedLocation = position;
-          markers.clear();
-          markers.add(
-            Marker(
-              markerId: MarkerId(
-                  'selectedLocation'),
-              position:
-                  selectedLocation,
-              draggable: true,
-              onDragEnd: (newPosition) {
-                setState(() {
-                  selectedLocation =
-                      newPosition;
-                });
-              },
-            ),
-          );
-        });
-      },
-    ),
-     */
